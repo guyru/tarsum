@@ -46,13 +46,12 @@ fn escape_filename(name: &[u8]) -> Vec<u8> {
             b'\r' => escaped.extend_from_slice(&[b'\\', b'r']),
             _ => escaped.push(*x),
         };
-
-    };
+    }
     escaped
 }
 
 fn should_escape(name: String) -> bool {
-    name.find("\n") != None || name.find("\r") != None
+    name.find('\n').is_some() || name.find('\r').is_some()
 }
 
 fn hash_entry(entry: &mut tar::Entry<impl Read>, hasher: &mut Box<dyn DigestWrite>) -> Box<[u8]> {
@@ -94,21 +93,18 @@ fn main() -> Result<()> {
     let mut archive = tar::Archive::new(input);
 
     let mut hasher: Box<dyn DigestWrite> = match cli.checksum.as_str() {
-        "md5" => Box::new(Md5::default()),
-        "sha1" => Box::new(Sha1::default()),
-        "sha256" => Box::new(Sha256::default()),
-        "sha384" => Box::new(Sha384::default()),
-        "sha512" => Box::new(Sha512::default()),
+        "md5" => Box::<Md5>::default(),
+        "sha1" => Box::<Sha1>::default(),
+        "sha256" => Box::<Sha256>::default(),
+        "sha384" => Box::<Sha384>::default(),
+        "sha512" => Box::<Sha512>::default(),
         _ => bail!("Wrong checksum {}", cli.checksum),
     };
 
-    let line_separator = if cli.zero {b"\0"}  else {b"\n"};
+    let line_separator = if cli.zero { b"\0" } else { b"\n" };
 
-    for entry in archive
-        .entries()
-        .with_context(|| format!("Failed to parse input file"))?
-    {
-        let mut entry = entry.with_context(|| format!("Failed to parse input file"))?;
+    for entry in archive.entries().context("Failed to parse input file")? {
+        let mut entry = entry.context("Failed to parse input file")?;
 
         // We skip all entries which are not regular files
         if !entry.header().entry_type().is_file() {
@@ -120,18 +116,20 @@ fn main() -> Result<()> {
         let entry_name = entry.path_bytes();
         let mut escaped = false;
         if !cli.zero && should_escape(String::from_utf8(entry_name.to_vec())?) {
-            output.write(b"\\").unwrap();
+            output.write_all(b"\\").unwrap();
             escaped = true;
         }
-        output.write(hash.as_bytes()).unwrap();
-        output.write(b"  ").unwrap();
+        output.write_all(hash.as_bytes()).unwrap();
+        output.write_all(b"  ").unwrap();
 
         if escaped {
-            output.write(&escape_filename(&entry.path_bytes())).unwrap();
+            output
+                .write_all(&escape_filename(&entry.path_bytes()))
+                .unwrap();
         } else {
-            output.write(&entry.path_bytes()).unwrap();
+            output.write_all(&entry.path_bytes()).unwrap();
         }
-        output.write(line_separator).unwrap();
+        output.write_all(line_separator).unwrap();
     }
 
     Ok(())
