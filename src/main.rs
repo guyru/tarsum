@@ -8,7 +8,7 @@ use std::io::{Read, Write};
 
 //use tar::Archive;
 
-/// A simple SNTP (RFC 5905) and RFC 868 client written in Rust.
+/// Compute a checksum for each file in a Tar archive.
 #[derive(Debug, Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
